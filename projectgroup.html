@@ -1,0 +1,378 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Study Group Discussion</title>
+ 
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #000000;
+      margin: 0;
+      background-image: url("p.jpeg");
+      background-size: cover;
+      background-attachment: fixed;
+    }
+ 
+    header {
+      background-color: #f5f9ff;
+      color: #1b2a41;
+      text-align: center;
+      padding: 20px;
+    }
+ 
+    nav {
+      background-color: black;
+      text-align: center;
+    }
+ 
+    nav a {
+      color: rgb(209, 28, 28);
+      text-decoration: none;
+      padding: 8px 20px;
+      display: inline-block;
+    }
+ 
+    nav a:hover {
+      background-color: #1b2a41;
+    }
+ 
+    .container {
+      width: 90%;
+      max-width: 700px;
+      margin: 20px auto;
+    }
+ 
+    .box {
+      background-color: white;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 30px;
+    }
+ 
+    input, textarea {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+      font-size: 15px;
+    }
+ 
+    button {
+      background-color: #1b2a41;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      cursor: pointer;
+      border-radius: 5px;
+      font-size: 15px;
+    }
+ 
+    button:hover { background-color: #34507a; }
+ 
+    /* Group buttons */
+    #group-list button {
+      margin: 4px 4px 4px 0;
+      background-color: #e3e9f3;
+      color: #1b2a41;
+    }
+    #group-list button.active {
+      background-color: #1b2a41;
+      color: white;
+    }
+ 
+    /* Live chat */
+    #chat-messages {
+      height: 320px;
+      overflow-y: auto;
+      background: #f2f5fa;
+      border-radius: 15px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+ 
+    .bubble {
+      max-width: 75%;
+      padding: 8px 12px;
+      border-radius: 14px;
+      background: #dde3ee;
+      word-wrap: break-word;
+    }
+    .bubble.mine {
+      align-self: flex-end;
+      background: #1b2a41;
+      color: white;
+    }
+    .bubble .sender { font-size: 12px; font-weight: bold; margin-bottom: 2px; opacity: 0.8; }
+    .bubble .when { font-size: 10px; opacity: 0.7; text-align: right; margin-top: 2px; }
+ 
+    #chat-row { display: flex; gap: 8px; }
+    #chat-row input { margin-bottom: 0; flex: 1; }
+ 
+    .time { font-size: 12px; color: gray; }
+ 
+    footer {
+      text-align: center;
+      padding: 15px;
+      color: white;
+    }
+  </style>
+</head>
+ 
+<body>
+ 
+  <header>
+    <h1>Online Study Group</h1>
+    <p>Ask questions. Share answers. Learn together.</p>
+  </header>
+ 
+  <nav>
+    <a href="#groups">Groups</a>
+    <a href="#chat">Live Chat</a>
+    <a href="#discuss">Discussion</a>
+    <a href="#about">About</a>
+  </nav>
+ 
+  <div class="container">
+ 
+    <!-- YOUR NAME (used for chat and posts) -->
+    <div class="box">
+      <h2>Your Name</h2>
+      <input type="text" id="name" placeholder="Enter your name" maxlength="20">
+    </div>
+ 
+    <!-- GROUPS: click one to open its chat -->
+    <div class="box" id="groups">
+      <h2>Study Groups</h2>
+      <p>Click a group to join its chat.</p>
+      <div id="group-list">
+        <button data-room="data-structures" class="active">Data Structures</button>
+        <button data-room="mathematics">Mathematics</button>
+        <button data-room="database-management">Database Management</button>
+      </div>
+    </div>
+ 
+    <!-- LIVE CHAT -->
+    <div class="box" id="chat">
+      <h2>Live Chat: <span id="room-name">Data Structures</span></h2>
+      <div id="chat-messages"></div>
+      <div id="chat-row">
+        <input type="text" id="chat-text" placeholder="Type a message..." autocomplete="off">
+        <button id="chat-send">Send</button>
+      </div>
+    </div>
+ 
+    <!-- DISCUSSION BOARD -->
+    <div class="box" id="discuss">
+      <h2>Post a Question</h2>
+      <textarea id="question" rows="4" placeholder="Write your question..."></textarea>
+      <textarea id="answer" rows="4" placeholder="Write your answer (optional)..."></textarea>
+      <button id="postBtn">Post</button>
+    </div>
+ 
+    <div id="posts"></div>
+ 
+    <div class="box" id="about">
+      <h2>About</h2>
+      <p>This website helps students discuss topics and solve doubts together.</p>
+    </div>
+ 
+  </div>
+ 
+  <footer>
+    College Project - Online Discussion Platform
+  </footer>
+ 
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+ 
+    // 🔴 PASTE YOUR FIREBASE CONFIG HERE
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+ 
+    const db = getFirestore(initializeApp(firebaseConfig));
+ 
+    // ---------- Elements ----------
+    const nameInput = document.getElementById("name");
+    const chatBox = document.getElementById("chat-messages");
+    const chatText = document.getElementById("chat-text");
+    const roomLabel = document.getElementById("room-name");
+    const postsDiv = document.getElementById("posts");
+    const groupButtons = document.querySelectorAll("#group-list button");
+ 
+    // ---------- Remember the name ----------
+    try { nameInput.value = localStorage.getItem("studyName") || ""; } catch (e) {}
+    nameInput.addEventListener("input", () => {
+      try { localStorage.setItem("studyName", nameInput.value); } catch (e) {}
+    });
+ 
+    function getName() {
+      const n = nameInput.value.trim();
+      if (n === "") {
+        alert("Please enter your name first!");
+        nameInput.focus();
+        return null;
+      }
+      return n;
+    }
+ 
+    // ---------- LIVE CHAT ----------
+    let currentRoom = "data-structures";
+    let stopChat = null;
+ 
+    function openRoom(room, label) {
+      currentRoom = room;
+      roomLabel.textContent = label;
+      chatBox.innerHTML = "";
+      if (stopChat) stopChat();
+ 
+      const q = query(
+        collection(db, "rooms", room, "messages"),
+        orderBy("time"),
+        limit(100)
+      );
+ 
+      stopChat = onSnapshot(q, (snapshot) => {
+        chatBox.innerHTML = "";
+        snapshot.forEach((d) => {
+          const m = d.data({ serverTimestamps: "estimate" });
+ 
+          const bubble = document.createElement("div");
+          bubble.className = "bubble";
+          if (m.name === nameInput.value.trim()) bubble.classList.add("mine");
+ 
+          const sender = document.createElement("div");
+          sender.className = "sender";
+          sender.textContent = m.name;
+ 
+          const text = document.createElement("div");
+          text.textContent = m.text;
+ 
+          const when = document.createElement("div");
+          when.className = "when";
+          if (m.time) {
+            when.textContent = m.time.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          }
+ 
+          bubble.append(sender, text, when);
+          chatBox.appendChild(bubble);
+        });
+        chatBox.scrollTop = chatBox.scrollHeight;
+      });
+    }
+ 
+    groupButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        groupButtons.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        openRoom(btn.dataset.room, btn.textContent);
+      });
+    });
+ 
+    async function sendChat() {
+      const text = chatText.value.trim();
+      if (text === "") return;
+      const name = getName();
+      if (!name) return;
+ 
+      chatText.value = "";
+      try {
+        await addDoc(collection(db, "rooms", currentRoom, "messages"), {
+          name: name,
+          text: text,
+          time: serverTimestamp()
+        });
+      } catch (error) {
+        console.error(error);
+        alert("Message failed. Check your Firebase setup.");
+      }
+    }
+ 
+    document.getElementById("chat-send").addEventListener("click", sendChat);
+    chatText.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendChat();
+    });
+ 
+    openRoom("data-structures", "Data Structures");
+ 
+    // ---------- DISCUSSION BOARD ----------
+    async function addPost() {
+      const question = document.getElementById("question").value.trim();
+      const answer = document.getElementById("answer").value.trim();
+ 
+      if (question === "") {
+        alert("Please write your question!");
+        return;
+      }
+      const name = getName();
+      if (!name) return;
+ 
+      try {
+        await addDoc(collection(db, "posts"), {
+          name: name,
+          question: question,
+          answer: answer,
+          time: serverTimestamp()
+        });
+        document.getElementById("question").value = "";
+        document.getElementById("answer").value = "";
+      } catch (error) {
+        console.error(error);
+        alert("Post failed. Check your Firebase setup.");
+      }
+    }
+ 
+    document.getElementById("postBtn").addEventListener("click", addPost);
+ 
+    const postsQuery = query(collection(db, "posts"), orderBy("time"), limit(100));
+    onSnapshot(postsQuery, (snapshot) => {
+      postsDiv.innerHTML = "";
+ 
+      snapshot.forEach((d) => {
+        const p = d.data({ serverTimestamps: "estimate" });
+ 
+        const box = document.createElement("div");
+        box.className = "box";
+ 
+        const who = document.createElement("strong");
+        who.textContent = p.name;
+ 
+        const ques = document.createElement("p");
+        ques.textContent = "Q: " + p.question;
+ 
+        box.append(who, ques);
+ 
+        if (p.answer) {
+          const ans = document.createElement("p");
+          ans.textContent = "A: " + p.answer;
+          box.appendChild(ans);
+        }
+ 
+        if (p.time) {
+          const t = document.createElement("div");
+          t.className = "time";
+          t.textContent = p.time.toDate().toLocaleString();
+          box.appendChild(t);
+        }
+ 
+        postsDiv.appendChild(box);
+      });
+    });
+  </script>
+ 
+</body>
+</html>
